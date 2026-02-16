@@ -1,0 +1,30 @@
+resilience4j:
+  retry:
+    instances:
+      database:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.dao.CannotAcquireLockException
+          - org.springframework.data.redis.RedisConnectionFailureException
+          - java.io.IOException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
+  circuit breaker:
+    instances:
+      database:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - org.springframework.data.redis.RedisConnectionFailureException
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
