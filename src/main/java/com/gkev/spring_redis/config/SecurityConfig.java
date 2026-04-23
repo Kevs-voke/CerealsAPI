@@ -30,7 +30,7 @@ private final JwtAuthFilter jwtAuthFilter;
         return httpSecurity
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges ->exchanges
-                  .pathMatchers("auth/register", "auth/login").permitAll()
+                  .pathMatchers("auth/register", "auth/login", "api/search").permitAll()
                   .pathMatchers("/customer/**").hasRole("CUSTOMER")
                     .anyExchange().authenticated()
                 )

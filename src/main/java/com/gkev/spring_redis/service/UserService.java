@@ -13,6 +13,8 @@ import com.gkev.spring_redis.repository.RoleRepo;
 import com.gkev.spring_redis.repository.UserRoleRepo;
 import com.gkev.spring_redis.repository.UsersRepo;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -20,75 +22,100 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
     private final TransactionalOperator transactionalOperator;
     private final UsersRepo usersRepo;
     private final RoleRepo roleRepo;
-    private  final UserRoleRepo userRoleRepo;
+    private final UserRoleRepo userRoleRepo;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final RegistrationResponseDTOMapper registrationResponseDTOMapper;
+    private final JwtService jwtService;
 
-
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     public Mono<RegistrationResponseDTO> register(UserDTO userDTO) {
+        logger.info("Registering user with email: {}", userDTO.email());
+
         return transactionalOperator.transactional(
                 validateEmailAndUsrNameAndPhoneNo(userDTO)
-                        .then(Mono.defer(()->{
+                        .then(Mono.defer(() -> {
                             UsersEntity user = userMapper.toUsersEntity(userDTO);
-                            user.setPasswrd(passwordEncoder.encode(userDTO.password))
-
+                            user.setPasswrd(passwordEncoder.encode(userDTO.password()));
                             return usersRepo.save(user);
                         }))
                         .flatMap(savedUser ->
-                                saveRoles(savedUser.getId(), userDTO.roles()).thenReturn(savedUser)
+                                saveRoles(savedUser.getUserId(), userDTO.roles())
+                                        .thenReturn(savedUser)
                         )
-                        .map(RegistrationResponseDTOMapper::toResponse)
+                        .flatMap(savedUser -> {
+                            String jwtToken = jwtService.generateToken(savedUser.getUsername());
+                            RegistrationResponseDTO response = registrationResponseDTOMapper.toResponse(savedUser, jwtToken);
+
+                            logger.info("User registered successfully: {}", savedUser.getEmail());
+
+                            return Mono.just(response);
+                        })
+                        .doOnError(e -> logger.error("Registration failed for email {}: {}", userDTO.email(), e.getMessage()))
         );
     }
 
-    private Mono<Void> validateEmailAndUsrNameAndPhoneNo(UserDTO usrDto){
+
+    private Mono<Void> validateEmailAndUsrNameAndPhoneNo(UserDTO usrDto) {
+        logger.info("Validating email: {}", usrDto.email());
+
         return usersRepo.existsByEmail(usrDto.email())
-                .flatMap(emailExists ->{
-                    if(emailExists){
+                .flatMap(emailExists -> {
+                    if (emailExists) {
                         return Mono.error(new UserException("Email already in use", "EMAIL_ALREADY_EXISTS"));
                     }
+                    logger.info("Email validated");
+
+                    logger.info("Validating username: {}", usrDto.username());
                     return usersRepo.existsByUsername(usrDto.username());
                 })
                 .flatMap(usernameExists -> {
-                    if(usernameExists){
-                    return UsernameGenerator.generateSuggestions(
-                            usrDto.firstName(),
-                            usrDto.email(),
-                            usrDto.lastName(),
-                            5
-                    )
-                            .collectList()
-                            .flatMap(suggestions -> Mono.error(new UserException(
-                                    "Username already taken",
-                                    "USERNAME_TAKEN",
-                                    suggestions
-                            )));
-                }
-                return usersRepo.existsByPhoneNumber(usrDto.phoneNumber());
+                    if (usernameExists) {
+                        logger.info("Username already exists");
+                        return UsernameGenerator.generateSuggestions(
+                                        usrDto.firstName(),
+                                        usrDto.email(),
+                                        usrDto.lastName(),
+                                        5
+                                ).collectList()
+                                .flatMap(suggestions -> Mono.error(new UserException(
+                                        "Username already taken",
+                                        "USERNAME_TAKEN",
+                                        suggestions
+                                )));
+                    }
+                    logger.info("Username validated");
 
-         })
-                .flatMap(phoneNumberExists ->{
-                    if (phoneNumberExists){
+                    logger.info("Validating phone number: {}", usrDto.phoneNumber());
+                    return usersRepo.existsByPhoneNumber(usrDto.phoneNumber());
+                })
+                .flatMap(phoneExists -> {
+                    if (phoneExists) {
                         return Mono.error(new UserException("Phone Number already in use", "PHONE_NUMBER_ALREADY_EXISTS"));
                     }
+                    logger.info("Phone number validated");
                     return Mono.empty();
                 });
     }
+
     private Mono<Void> saveRoles(int userId, Iterable<String> roles) {
+        logger.info("Saving roles for userId: {}", userId);
+
         return Flux.fromIterable(roles)
                 .flatMap(roleName ->
                         roleRepo.findByName(roleName.toUpperCase())
-                                .switchIfEmpty(Mono.error(
-                                        new UserException("Invalid role: " + roleName, "INVALID_ROLE")
-                                ))
+                                .switchIfEmpty(Mono.error(new UserException(
+                                        "Invalid role: " + roleName,
+                                        "INVALID_ROLE"
+                                )))
                                 .map(RolesEntity::getId)
                                 .map(roleId -> {
                                     UserRoleEntity entity = new UserRoleEntity();
@@ -96,9 +123,10 @@ public class UserService {
                                     entity.setRoleId(roleId);
                                     return entity;
                                 })
+                                .flatMap(userRoleRepo::save)
                 )
-                .flatMap(userRoleRepo::save)
+                .collectList()
+                .doOnSuccess(saved -> logger.info("Roles successfully saved for userId: {}", userId))
                 .then();
     }
-
 }

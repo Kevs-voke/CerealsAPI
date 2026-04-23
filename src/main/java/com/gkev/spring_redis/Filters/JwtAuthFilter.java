@@ -3,7 +3,7 @@ package com.gkev.spring_redis.Filters;
 import com.gkev.spring_redis.service.JwtService;
 import com.gkev.spring_redis.service.MyUserDetailsService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextImpl;
@@ -22,17 +22,30 @@ public class JwtAuthFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if(authHeader == null || !authHeader.startsWith("Bearer ")){
+
+        HttpCookie authCookie =
+                exchange.getRequest()
+                        .getCookies()
+                        .getFirst("auth_token");
+
+        if (authCookie == null) {
             return chain.filter(exchange);
         }
-        String token = authHeader.substring(7);
+
+        String token = authCookie.getValue();
+
+        if (token == null || token.isBlank()) {
+            return chain.filter(exchange);
+        }
+
         String username;
+
         try {
             username = jwtService.extractUsername(token);
         } catch (Exception e) {
             return chain.filter(exchange);
         }
+
 
         return userDetailsService.findByUsername(username)
                 .filter(userDetails ->  jwtService.validateToken(token, userDetails))

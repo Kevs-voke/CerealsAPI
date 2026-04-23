@@ -10,6 +10,7 @@ import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+
 @Configuration
 public class RedisConfig {
 
@@ -19,8 +20,6 @@ public class RedisConfig {
             ReactiveRedisConnectionFactory factory
     ) {
         StringRedisSerializer keySerializer = new StringRedisSerializer();
-
-
         JacksonJsonRedisSerializer<FoodDTO> valueSerializer =
                 new JacksonJsonRedisSerializer<>(FoodDTO.class);
 
@@ -34,4 +33,5 @@ public class RedisConfig {
 
         return new ReactiveRedisTemplate<>(factory, context);
     }
+
 }
