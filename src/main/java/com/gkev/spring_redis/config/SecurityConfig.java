@@ -1,6 +1,7 @@
 package com.gkev.spring_redis.config;
 
 import com.gkev.spring_redis.Filters.JwtAuthFilter;
+import com.gkev.spring_redis.Filters.RedisRateLimiterFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,24 +19,23 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 
 
 @Configuration
-@EnableWebFlux
 @EnableReactiveMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
 private final JwtAuthFilter jwtAuthFilter;
+private final RedisRateLimiterFilter rateLimiterFilter;
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity httpSecurity) {
         return httpSecurity
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges ->exchanges
-                  .pathMatchers("auth/register", "auth/login", "api/search").permitAll()
+                  .pathMatchers("/auth/register", "/auth/login", "/api/search/**").permitAll()
                   .pathMatchers("/customer/**").hasRole("CUSTOMER")
                     .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthFilter, SecurityWebFiltersOrder.AUTHENTICATION)
-                .httpBasic(Customizer.withDefaults())
                 .build();
 
     }

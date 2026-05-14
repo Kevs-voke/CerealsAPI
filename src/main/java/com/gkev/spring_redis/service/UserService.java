@@ -74,12 +74,12 @@ public class UserService {
                     }
                     logger.info("Email validated");
 
-                    logger.info("Validating username: {}", usrDto.username());
+                    logger.info("Validating username for user with email {}", usrDto.email());
                     return usersRepo.existsByUsername(usrDto.username());
                 })
                 .flatMap(usernameExists -> {
                     if (usernameExists) {
-                        logger.info("Username already exists");
+                        logger.info("Username already exists for user with email {}", usrDto.email());
                         return UsernameGenerator.generateSuggestions(
                                         usrDto.firstName(),
                                         usrDto.email(),
@@ -92,22 +92,22 @@ public class UserService {
                                         suggestions
                                 )));
                     }
-                    logger.info("Username validated");
+                    logger.info("Username validated for user with email {}", usrDto.email());
 
-                    logger.info("Validating phone number: {}", usrDto.phoneNumber());
+                    logger.info("Validating phone number for user with email {}", usrDto.email());
                     return usersRepo.existsByPhoneNumber(usrDto.phoneNumber());
                 })
                 .flatMap(phoneExists -> {
                     if (phoneExists) {
                         return Mono.error(new UserException("Phone Number already in use", "PHONE_NUMBER_ALREADY_EXISTS"));
                     }
-                    logger.info("Phone number validated");
+                    logger.info("Phone number validated for user with email {}", usrDto.email());
                     return Mono.empty();
                 });
     }
 
     private Mono<Void> saveRoles(int userId, Iterable<String> roles) {
-        logger.info("Saving roles for userId: {}", userId);
+        logger.info("Saving roles ");
 
         return Flux.fromIterable(roles)
                 .flatMap(roleName ->
@@ -126,7 +126,7 @@ public class UserService {
                                 .flatMap(userRoleRepo::save)
                 )
                 .collectList()
-                .doOnSuccess(saved -> logger.info("Roles successfully saved for userId: {}", userId))
+                .doOnSuccess(saved -> logger.info("Roles successfully saved"))
                 .then();
     }
 }
