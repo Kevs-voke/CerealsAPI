@@ -1,26 +1,29 @@
 package com.gkev.spring_redis.config;
 
 import com.gkev.spring_redis.DTO.FoodDTO;
+import io.github.bucket4j.distributed.proxy.AsyncProxyManager;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import io.github.bucket4j.distributed.proxy.AsyncProxyManager;
 
 import java.time.Duration;
 
 @Configuration
 public class RedisConfig {
+
+    @Value("${spring.data.redis.url}")
+    private String redisUrl;
 
     @Bean
     public ReactiveRedisTemplate<String, FoodDTO> reactiveFoodRedisTemplate(
@@ -43,8 +46,6 @@ public class RedisConfig {
 
     @Bean
     public AsyncProxyManager<String> bucket4jAsyncProxyManager() {
-        String redisUrl = System.getenv("SPRING_DATA_REDIS_URL");
-
         RedisClient redisClient = RedisClient.create(redisUrl);
         redisClient.setDefaultTimeout(Duration.ofSeconds(10));
 
