@@ -3,7 +3,6 @@ package com.gkev.spring_redis.Model;
 import com.gkev.spring_redis.Entity.RolesEntity;
 import com.gkev.spring_redis.Entity.UsersEntity;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,16 +17,20 @@ public class UserPrincipal implements UserDetails {
     private final UsersEntity user;
     private final List<RolesEntity> roles;
 
+    // FIX Bug 2: expose userId so the controller can pass it to the service
+    public Long getUserId() {
+        return user.getUserId().longValue();
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles.stream()
-                .map(roles -> new SimpleGrantedAuthority("ROLE_" + roles.getName()))
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName()))
                 .collect(Collectors.toList());
     }
 
     @Override
-    public  String getPassword() {
+    public String getPassword() {
         return user.getPasswrd();
     }
 
@@ -55,5 +58,4 @@ public class UserPrincipal implements UserDetails {
     public boolean isEnabled() {
         return user.getEnabled();
     }
-
 }

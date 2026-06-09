@@ -1,11 +1,11 @@
 package com.gkev.spring_redis.controller;
 
-
+import com.gkev.spring_redis.DTO.LoginRequestDTO;
+import com.gkev.spring_redis.DTO.RegistrationResponseDTO;
 import com.gkev.spring_redis.DTO.UserDTO;
 import com.gkev.spring_redis.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -18,35 +18,46 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 
-
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-private final UserService userService;
-
+    private final UserService userService;
     @PostMapping("/register")
-    public Mono<ResponseEntity<String>> register(@Valid @RequestBody UserDTO newUser) {
+    public Mono<ResponseEntity<RegistrationResponseDTO>> register(@Valid @RequestBody UserDTO newUser) {
         return userService.register(newUser)
-                .flatMap(authResponse -> {
+                .map(authResponse ->
+                        ResponseEntity
+                                .status(HttpStatus.CREATED)
+                                .headers(buildCookieHeaders(authResponse.authToken()))
+                                .body(authResponse)
+                );
+    }
+
+    @PostMapping("/login")
+    public Mono<ResponseEntity<RegistrationResponseDTO>> login(@Valid @RequestBody LoginRequestDTO credentials) {
+        return userService.login(credentials)
+                .map(authResponse ->
+                        ResponseEntity
+                                .ok()
+                                .headers(buildCookieHeaders(authResponse.authToken()))
+                                .body(authResponse)
+                );
+    }
 
 
-                    ResponseCookie authCookie = ResponseCookie.from("authToken", authResponse.authToken())  // or authResponse.authToken()
-                            .httpOnly(true)
-                            .secure(false)
-                            .path("/")
-                            .maxAge(Duration.ofHours(24))
-                            .sameSite("Strict")
-                            .build();
+    private HttpHeaders buildCookieHeaders(String token) {
+        ResponseCookie cookie = ResponseCookie.from("auth_token", token)
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(Duration.ofHours(24))
+                .sameSite("Lax")
+                .build();
 
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.add(HttpHeaders.SET_COOKIE, authCookie.toString());
-
-                    return Mono.just(ResponseEntity
-                            .status(HttpStatus.CREATED)
-                            .headers(headers)
-                            .body("User registered successfully: " + authResponse.email()));
-                });
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, cookie.toString());
+        return headers;
     }
 }

@@ -1,15 +1,17 @@
 package com.gkev.spring_redis.Entity;
 
 import lombok.Data;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
 @Data
 @Table("orders")
 public class OrderEntity {
 
+    @Id
     @Column("order_id")
     private int orderId;
 
@@ -23,6 +25,6 @@ public class OrderEntity {
     private String orderStatus;
 
     @Column("order_date")
-    private Date orderDate;
+    private LocalDateTime orderDate;
 
 }

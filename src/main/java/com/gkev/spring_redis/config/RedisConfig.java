@@ -1,19 +1,24 @@
 package com.gkev.spring_redis.config;
 
 import com.gkev.spring_redis.DTO.FoodDTO;
+import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.codec.ByteArrayCodec;
+import io.lettuce.core.codec.RedisCodec;
+import io.lettuce.core.codec.StringCodec;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-
+import io.github.bucket4j.distributed.proxy.AsyncProxyManager;
 
 @Configuration
 public class RedisConfig {
-
 
     @Bean
     public ReactiveRedisTemplate<String, FoodDTO> reactiveFoodRedisTemplate(
@@ -34,4 +39,17 @@ public class RedisConfig {
         return new ReactiveRedisTemplate<>(factory, context);
     }
 
+    @Bean
+    public AsyncProxyManager<String> bucket4jAsyncProxyManager(
+            ReactiveRedisConnectionFactory factory
+    ) {
+        LettuceConnectionFactory lettuceFactory = (LettuceConnectionFactory) factory;
+        RedisClient redisClient = (RedisClient) lettuceFactory.getNativeClient();
+        StatefulRedisConnection<String, byte[]> connection =
+                redisClient.connect(RedisCodec.of(StringCodec.UTF8, ByteArrayCodec.INSTANCE));
+
+        return LettuceBasedProxyManager.builderFor(connection)
+                .build()
+                .asAsync();
+    }
 }

@@ -4,9 +4,16 @@ import com.gkev.spring_redis.DTO.RegistrationResponseDTO;
 import com.gkev.spring_redis.Entity.UsersEntity;
 import org.springframework.stereotype.Component;
 
+
 @Component
 public class RegistrationResponseDTOMapper {
-    public  RegistrationResponseDTO toResponse(UsersEntity user, String authToken ){
-        return new RegistrationResponseDTO(user.getEmail(), authToken);
+
+    public RegistrationResponseDTO toResponse(UsersEntity user, String jwtToken) {
+        return new RegistrationResponseDTO(
+                user.getEmail(),
+                user.getUsername(),
+                user.getFirstName(),
+                jwtToken
+        );
     }
 }

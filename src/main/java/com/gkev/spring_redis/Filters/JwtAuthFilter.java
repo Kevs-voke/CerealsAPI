@@ -3,6 +3,7 @@ package com.gkev.spring_redis.Filters;
 import com.gkev.spring_redis.service.JwtService;
 import com.gkev.spring_redis.service.MyUserDetailsService;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpCookie;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -24,9 +25,7 @@ public class JwtAuthFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 
         HttpCookie authCookie =
-                exchange.getRequest()
-                        .getCookies()
-                        .getFirst("auth_token");
+                exchange.getRequest().getCookies().getFirst("auth_token");
 
         if (authCookie == null) {
             return chain.filter(exchange);
@@ -46,16 +45,22 @@ public class JwtAuthFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-
         return userDetailsService.findByUsername(username)
-                .filter(userDetails ->  jwtService.validateToken(token, userDetails))
-                .flatMap(userDetails -> {
-                    UsernamePasswordAuthenticationToken auth =
-                            new UsernamePasswordAuthenticationToken(userDetails,null,userDetails.getAuthorities());
-                    SecurityContextImpl sc =new SecurityContextImpl(auth);
-                    return chain.filter(exchange)
-                            .contextWrite(ReactiveSecurityContextHolder.withSecurityContext(Mono.just(sc)));
+                .filter(user -> jwtService.validateToken(token, user))
+                .flatMap(user -> {
 
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(
+                                    user,
+                                    null,
+                                    user.getAuthorities()
+                            );
+
+                    SecurityContextImpl context = new SecurityContextImpl(auth);
+
+                    return chain.filter(exchange)
+                            .contextWrite(ReactiveSecurityContextHolder
+                                    .withSecurityContext(Mono.just(context)));
                 })
                 .switchIfEmpty(chain.filter(exchange));
     }

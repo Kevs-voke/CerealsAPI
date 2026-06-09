@@ -1,5 +1,6 @@
 package com.gkev.spring_redis.service;
 
+import com.gkev.spring_redis.DTO.LoginRequestDTO;
 import com.gkev.spring_redis.DTO.RegistrationResponseDTO;
 import com.gkev.spring_redis.DTO.UserDTO;
 import com.gkev.spring_redis.Entity.RolesEntity;
@@ -52,7 +53,7 @@ public class UserService {
                                         .thenReturn(savedUser)
                         )
                         .flatMap(savedUser -> {
-                            String jwtToken = jwtService.generateToken(savedUser.getUsername());
+                            String jwtToken = jwtService.generateToken(savedUser);
                             RegistrationResponseDTO response = registrationResponseDTOMapper.toResponse(savedUser, jwtToken);
 
                             logger.info("User registered successfully: {}", savedUser.getEmail());
@@ -128,5 +129,49 @@ public class UserService {
                 .collectList()
                 .doOnSuccess(saved -> logger.info("Roles successfully saved"))
                 .then();
+    }
+    public Mono<RegistrationResponseDTO> login(LoginRequestDTO loginRequest) {
+
+        logger.info("Login attempt for email: {}", loginRequest.email());
+
+        return usersRepo.findByEmail(loginRequest.email())
+                .switchIfEmpty(Mono.error(
+                        new UserException(
+                                "Invalid email or password",
+                                "INVALID_CREDENTIALS"
+                        )
+                ))
+                .flatMap(user -> {
+
+                    boolean passwordMatches = passwordEncoder.matches(
+                            loginRequest.password(),
+                            user.getPasswrd()
+                    );
+
+                    if (!passwordMatches) {
+                        return Mono.error(
+                                new UserException(
+                                        "Invalid email or password",
+                                        "INVALID_CREDENTIALS"
+                                )
+                        );
+                    }
+
+                    String jwtToken = jwtService.generateToken(user);
+
+                    RegistrationResponseDTO response =
+                            registrationResponseDTOMapper.toResponse(user, jwtToken);
+
+                    logger.info("User logged in successfully: {}", user.getEmail());
+
+                    return Mono.just(response);
+                })
+                .doOnError(error ->
+                        logger.error(
+                                "Login failed for email {}: {}",
+                                loginRequest.email(),
+                                error.getMessage()
+                        )
+                );
     }
 }

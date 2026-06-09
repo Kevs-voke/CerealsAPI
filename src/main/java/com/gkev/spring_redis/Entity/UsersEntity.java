@@ -11,8 +11,7 @@ public class UsersEntity {
 
     @Id
     @Column("user_id")
-    private int userId;
-
+    private Integer userId;
     private String username;
 
     @Column("first_name")
@@ -38,6 +37,4 @@ public class UsersEntity {
     private Boolean credentialsNonExpired;
 
     private Boolean enabled;
-
-
 }
