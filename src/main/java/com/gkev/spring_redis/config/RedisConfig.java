@@ -17,6 +17,8 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import io.github.bucket4j.distributed.proxy.AsyncProxyManager;
 
+import java.time.Duration;
+
 @Configuration
 public class RedisConfig {
 
@@ -40,11 +42,12 @@ public class RedisConfig {
     }
 
     @Bean
-    public AsyncProxyManager<String> bucket4jAsyncProxyManager(
-            ReactiveRedisConnectionFactory factory
-    ) {
-        LettuceConnectionFactory lettuceFactory = (LettuceConnectionFactory) factory;
-        RedisClient redisClient = (RedisClient) lettuceFactory.getNativeClient();
+    public AsyncProxyManager<String> bucket4jAsyncProxyManager() {
+        String redisUrl = System.getenv("SPRING_DATA_REDIS_URL");
+
+        RedisClient redisClient = RedisClient.create(redisUrl);
+        redisClient.setDefaultTimeout(Duration.ofSeconds(10));
+
         StatefulRedisConnection<String, byte[]> connection =
                 redisClient.connect(RedisCodec.of(StringCodec.UTF8, ByteArrayCodec.INSTANCE));
 
