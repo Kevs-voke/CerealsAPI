@@ -50,10 +50,10 @@ public class AuthController {
     private HttpHeaders buildCookieHeaders(String token) {
         ResponseCookie cookie = ResponseCookie.from("auth_token", token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .path("/")
                 .maxAge(Duration.ofHours(24))
-                .sameSite("Lax")
+                .sameSite("None")
                 .build();
 
         HttpHeaders headers = new HttpHeaders();
